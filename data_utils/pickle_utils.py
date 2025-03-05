@@ -2,6 +2,7 @@ import os
 import pickle
 import datetime
 import logging
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,9 @@ def ensure_directory_exists(directory: str) -> None:
     os.makedirs(directory, exist_ok=True)
 
 
-def get_safe_filepath(directory: str, filename: str, extension: str = "pickle") -> str:
+def get_safe_filepath(directory: str,
+                      filename: str,
+                      extension: str = "pickle") -> str:
     """
     Generates a safe file path. If a file with the same name already exists,
     appends a timestamp to avoid overwriting.
@@ -43,7 +46,9 @@ def get_safe_filepath(directory: str, filename: str, extension: str = "pickle") 
     return filepath
 
 
-def save_as_pickle(obj: object, directory: str, filename: str) -> str:
+def save_as_pickle(obj: object,
+                   directory: str,
+                   filename: str) -> str:
     """
     Saves a Python object as a pickle file, avoiding overwrites by adding a timestamp if needed.
 
@@ -69,7 +74,8 @@ def save_as_pickle(obj: object, directory: str, filename: str) -> str:
     return filepath
 
 
-def load_from_pickle(directory: str, filename: str) -> object:
+def load_from_pickle(directory: str,
+                     filename: str) -> object:
     """
     Loads a Python object from a pickle file.
 
@@ -137,7 +143,7 @@ def load_pickles_from_directory(directory: str) -> dict:
 
     return pickles
 
-import sys
+
 # example usage
 if __name__ == '__main__':
     # logging configuration
@@ -146,11 +152,11 @@ if __name__ == '__main__':
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         stream=sys.stdout
     )
-
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     # Prova
     data = {"test": 123}
+    os.chdir(base_dir)
     save_as_pickle(data, "output", "example")
 
-    all_pickles = load_pickles_from_directory("/Users/jackvittori/Desktop/test_results_giacomo/quantum")
-
-    print(all_pickles.keys())
+    all_pickles = load_pickles_from_directory("output")
+    print(all_pickles)

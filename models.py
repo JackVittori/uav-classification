@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Definition of the EfficientNet-B0 model to be used in analysing building images
 for the damage level evaluation.
@@ -8,7 +7,7 @@ Created on Wed Dec 11 17:14:57 2024
 @author: Michele Scarpiniti -- DIET Dpt. (Sapienza University of Rome)
 """
 
-
+import tensorflow
 from tensorflow import keras
 from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
 from tensorflow.keras.layers import Input, GlobalAveragePooling2D
