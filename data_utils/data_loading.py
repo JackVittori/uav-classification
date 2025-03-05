@@ -78,12 +78,12 @@ def dataset_partition(
     Raises:
         ValueError: If the sum of train_ratio, val_ratio, and test_ratio is not equal to 1.0.
     """
-    if train_ratio + test_ratio != 1.0:
+    if train_ratio + test_ratio != 1:
         raise ValueError(f"The sum of train_ratio and test_ratio must be equal to 1")
 
     if val_ratio is None:
         val_ratio = 1 - train_ratio - test_ratio
-    if train_ratio + val_ratio + test_ratio != 1.0:
+    if train_ratio + val_ratio + test_ratio != 1:
         if val_ratio is None:
             raise ValueError("The sum of train_ratio, and test_ratio must equal 1")
         else:
@@ -112,7 +112,7 @@ def dataset_partition(
     logger.info(f"Validation dataset contains {val_size} batches." if val_ratio else "No validation dataset created.")
     logger.info(f"Test dataset contains {ds_size - train_size - val_size} batches.")
 
-    if val_ratio is None:
+    if val_ratio == 0:
         return train_ds, test_ds
     else:
         return train_ds, val_ds, test_ds
@@ -125,8 +125,7 @@ if __name__ == '__main__':
         stream=sys.stdout
     )
 
-    ds = load_and_preprocess_dataset(data_dir='/Users/jackvittori/Desktop/uav-classification/images', seed=12)
-    print(ds.cardinality())
+    ds = load_and_preprocess_dataset(data_dir='/Users/jackvittori/Desktop/uav-classification/images')
     train, test = dataset_partition(dataset=ds, train_ratio=0.8, test_ratio=0.2)
 
     print(type(train))
