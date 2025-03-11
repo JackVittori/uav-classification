@@ -1,8 +1,9 @@
 import tensorflow as tf
 import pathlib
 import random
-from typing import Tuple, List, Union, Optional
+from typing import Tuple, List, Union, Optional, Dict
 import logging
+from collections import defaultdict, Counter
 
 logger = logging.getLogger(__name__)
 AUTOTUNE = tf.data.AUTOTUNE
@@ -10,20 +11,24 @@ AUTOTUNE = tf.data.AUTOTUNE
 
 def retrieve_images(data_root: str,
                     shuffle: bool = True,
-                    seed: int = 123) -> Tuple[List[str], List[int]]:
+                    seed: int = 123,
+                    exclude_multiple: bool = True) -> Tuple[List[str], List[int]]:
     """Retrieves all image file paths and labels from a directory and optionally shuffles them.
 
     Args:
         data_root (str): Directory where images are stored.
         shuffle (bool): Whether to shuffle the list of image paths. Defaults to True.
-        seed (int): Random seed for reproducible shuffling. Defaults to 42.
+        seed (int): Random seed for reproducible shuffling. Defaults to 123.
+        exclude_multiple (bool): Whether to exclude 'Bird+2_Blade_rotor' classes. Defaults to True.
 
     Returns:
         Tuple[List[str], List[int]]: List of image file paths and correspondent labels.
     """
     data_root = pathlib.Path(data_root)
-    all_image_paths = list(data_root.glob('*/*'))
-    all_image_paths = [str(path) for path in all_image_paths]
+
+    # exclude Bird+2_Blade_rotor if requested
+    all_image_paths = [str(path) for path in data_root.glob('*/*') if
+                       not (exclude_multiple and pathlib.Path(path).parent.name.startswith('Bird+2_Blade_rotor'))]
 
     if shuffle:
         random.seed(seed)
@@ -31,8 +36,9 @@ def retrieve_images(data_root: str,
 
     logger.info(f"Successfully retrieved {len(all_image_paths)} image paths")
 
-    label_names = sorted(item.name for item in data_root.glob('*/') if item.is_dir())
-    label_to_index = dict((name, index) for index, name in enumerate(label_names))
+    label_names = sorted(set(pathlib.Path(path).parent.name for path in all_image_paths))
+    label_to_index = {name: index for index, name in enumerate(label_names)}
+
     all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in all_image_paths]
 
     return all_image_paths, all_image_labels
@@ -57,17 +63,12 @@ def load_and_preprocess_image(image_path: str,
     return image
 
 
-from collections import defaultdict
-
-
 def count_samples_per_class(dataset: tf.data.Dataset,
-                            num_classes: int = 10,
-                            true_labels_path: str = None) -> dict:
+                            true_labels_path: str = None) -> Dict:
     """Counts the number of samples per class in a batched dataset.
 
     Args:
         dataset (tf.data.Dataset): A batched dataset of (image, label) pairs.
-        num_classes (int): Total number of classes.
         true_labels_path (str): The path of the directory containing data. If given, it returns true labels. Defaults to None.
 
     Returns:
@@ -76,17 +77,25 @@ def count_samples_per_class(dataset: tf.data.Dataset,
     class_counts = defaultdict(int)
 
     for images, labels in dataset:
-        # labels is a batch of class indices
-        unique_labels, counts = tf.unique(tf.reshape(labels, [-1]))
-        for label, count in zip(unique_labels.numpy(), counts.numpy()):
+        labels_np = labels.numpy()
+        batch_count = Counter(labels_np)
+
+        for label, count in batch_count.items():
             class_counts[label] += count
+
+    num_classes = max(class_counts.keys()) + 1
+    index_to_label = {i: f"Class_{i}" for i in range(num_classes)}
+
     if true_labels_path is not None:
         data_root = pathlib.Path(true_labels_path)
         label_names = sorted(item.name for item in data_root.glob('*/') if item.is_dir())
-        index_to_label = dict((index, name) for index, name in enumerate(label_names))
-        return {index_to_label[i]: class_counts.get(i, 0) for i in range(num_classes)}
-    # Make sure every class index exists, even if some classes have 0 samples
-    return {i: class_counts.get(i, 0) for i in range(num_classes)}
+
+        if len(label_names) != num_classes:
+            label_names.remove("Bird+2_Blade_rotor")
+
+        index_to_label = {index: name for index, name in enumerate(label_names)}
+
+    return {index_to_label[i]: class_counts.get(i, 0) for i in range(num_classes)}
 
 
 def create_dataset(data_root: str,
@@ -96,6 +105,7 @@ def create_dataset(data_root: str,
                    resize: Tuple[int, int] = (1050, 1400),
                    batch_size: Optional[int] = None,
                    shuffle: bool = True,
+                   exclude_multiclass:bool = False,
                    seed: int = 123) -> Union[Tuple[tf.data.Dataset, tf.data.Dataset],
 Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]]:
     """Creates tensorflow datasets for training, validation (optional) and testing.
@@ -108,6 +118,7 @@ Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]]:
         resize(Tuple[int, int], optional): Target size for the images in the format (height, width).
         batch_size(int): Batch size. Defaults to None.
         shuffle(bool): Whether to shuffle the list of image paths. Defaults to True.
+        exclude_multiclass(bool): Whether to exclude 'Bird+2_Blade_rotor' classes.
         seed(int): Seed for reproducible shuffling. Defaults to 123.
 
     Returns:
@@ -125,7 +136,10 @@ Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]]:
         if train_ratio + val_ratio + test_ratio != 1:
             raise ValueError("The sum of train_ratio, val_ratio and test_ratio must be equal to 1.")
 
-    images_paths, labels_paths = retrieve_images(data_root, shuffle=shuffle, seed=seed)
+    images_paths, labels_paths = retrieve_images(data_root,
+                                                 shuffle=shuffle,
+                                                 exclude_multiple=exclude_multiclass,
+                                                 seed=seed)
     total_images = len(images_paths)
 
     if val_ratio is not None:
