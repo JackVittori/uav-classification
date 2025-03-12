@@ -4,9 +4,19 @@ import random
 from typing import Tuple, List, Union, Optional, Dict
 import logging
 from collections import defaultdict, Counter
+from PIL import Image, ImageChops
 
 logger = logging.getLogger(__name__)
 AUTOTUNE = tf.data.AUTOTUNE
+
+
+def trim(im):
+    bg = Image.new(im.mode, im.size, im.getpixel((0, 0)))
+    diff = ImageChops.difference(im, bg)
+    diff = ImageChops.add(diff, diff, 2.0, -100)
+    bbox = diff.getbbox()
+    if bbox:
+        return im.crop(bbox)
 
 
 def retrieve_images(data_root: str,
@@ -105,7 +115,7 @@ def create_dataset(data_root: str,
                    resize: Tuple[int, int] = (1050, 1400),
                    batch_size: Optional[int] = None,
                    shuffle: bool = True,
-                   exclude_multiclass:bool = False,
+                   exclude_multiclass: bool = False,
                    seed: int = 123) -> Union[Tuple[tf.data.Dataset, tf.data.Dataset],
 Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]]:
     """Creates tensorflow datasets for training, validation (optional) and testing.

@@ -20,7 +20,8 @@ if __name__ == '__main__':
                                                       batch_size=64,
                                                       exclude_multiclass=True)
 
-    print(count_samples_per_class(dataset= train_ds, true_labels_path=base_path))
+    print(count_samples_per_class(dataset=train_ds,
+                                  true_labels_path=base_path))
 
 
 
