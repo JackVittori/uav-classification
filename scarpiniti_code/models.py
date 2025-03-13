@@ -18,10 +18,6 @@ from tensorflow.keras.layers import concatenate
 from tensorflow.keras.applications import EfficientNetB0
 from tensorflow.keras.applications import MobileNetV2
 
-
-
-
-
 # Function for defining a new EfficientNet-B0 model
 def build_model(num_classes, LR=0.001):
     inputs = Input(shape=(224, 224, 3))
